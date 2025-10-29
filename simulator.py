@@ -1,7 +1,6 @@
 """
 GPU scheduler simulator.
 
-Run this to see a basic example of how the schedulers work.
 """
 
 import sys
