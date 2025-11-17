@@ -1,0 +1,61 @@
+GPU Device: Tesla T4
+GPU Memory: 15.83 GB
+Safe memory per concurrent job: 2026MB
+Note: Workload sizes adjusted for your GPU's memory capacity
+
+Workload configuration:
+Homogeneous: 1024MB x 4 jobs
+Heterogeneous: 512MB (small) and 1536MB (large)
+Total memory needed (concurrent): ~4.0GB
+
+============================================================
+Running Experiment: Homogeneous Sequential (FIFO-like)
+Concurrent: False, Trials: 3
+============================================================
+Trial 1/3...
+Trial 2/3...
+Trial 3/3...
+
+Results Summary:
+Mean Turnaround Time: 2.122 sec
+Std Turnaround Time: 0.049 sec
+Jain's Fairness Index: 1.000
+
+============================================================
+Running Experiment: Heterogeneous Sequential (FIFO-like)
+Concurrent: False, Trials: 3
+============================================================
+Trial 1/3...
+Trial 2/3...
+Trial 3/3...
+
+Results Summary:
+Mean Turnaround Time: 2.081 sec
+Std Turnaround Time: 1.106 sec
+Jain's Fairness Index: 0.794
+
+============================================================
+Running Experiment: Homogeneous Concurrent
+Concurrent: True, Trials: 3
+============================================================
+Trial 1/3...
+Trial 2/3...
+Trial 3/3...
+
+Results Summary:
+Mean Turnaround Time: 3.066 sec
+Std Turnaround Time: 0.229 sec
+Jain's Fairness Index: 0.995
+
+============================================================
+Running Experiment: Heterogeneous Concurrent
+Concurrent: True, Trials: 3
+============================================================
+Trial 1/3...
+Trial 2/3...
+Trial 3/3...
+
+Results Summary:
+Mean Turnaround Time: 3.474 sec
+Std Turnaround Time: 0.818 sec
+Jain's Fairness Index: 0.952
