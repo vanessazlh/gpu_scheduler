@@ -1,15 +1,13 @@
 GPU Device: Tesla T4
 GPU Memory: 15.83 GB
 Safe memory per concurrent job: 2026MB
-Note: Workload sizes adjusted for your GPU's memory capacity
 
 Workload configuration:
 Homogeneous: 1024MB x 4 jobs
 Heterogeneous: 512MB (small) and 1536MB (large)
-Total memory needed (concurrent): ~4.0GB
 
 ============================================================
-Running Experiment: Homogeneous Sequential (FIFO-like)
+Running Experiment: Homogeneous Sequential (Batch Arrival)
 Concurrent: False, Trials: 3
 ============================================================
 Trial 1/3...
@@ -17,12 +15,12 @@ Trial 2/3...
 Trial 3/3...
 
 Results Summary:
-Mean Turnaround Time: 2.122 sec
-Std Turnaround Time: 0.049 sec
-Jain's Fairness Index: 1.000
+Mean Turnaround Time: 5.484 sec
+Std Turnaround Time: 2.476 sec
+Jain's Fairness Index: 0.843
 
 ============================================================
-Running Experiment: Heterogeneous Sequential (FIFO-like)
+Running Experiment: Heterogeneous Sequential (Batch Arrival)
 Concurrent: False, Trials: 3
 ============================================================
 Trial 1/3...
@@ -30,12 +28,12 @@ Trial 2/3...
 Trial 3/3...
 
 Results Summary:
-Mean Turnaround Time: 2.081 sec
-Std Turnaround Time: 1.106 sec
-Jain's Fairness Index: 0.794
+Mean Turnaround Time: 4.703 sec
+Std Turnaround Time: 2.734 sec
+Jain's Fairness Index: 0.763
 
 ============================================================
-Running Experiment: Homogeneous Concurrent
+Running Experiment: Homogeneous Concurrent (Staggered Arrival)
 Concurrent: True, Trials: 3
 ============================================================
 Trial 1/3...
@@ -43,12 +41,12 @@ Trial 2/3...
 Trial 3/3...
 
 Results Summary:
-Mean Turnaround Time: 3.066 sec
-Std Turnaround Time: 0.229 sec
-Jain's Fairness Index: 0.995
+Mean Turnaround Time: 3.099 sec
+Std Turnaround Time: 0.206 sec
+Jain's Fairness Index: 0.996
 
 ============================================================
-Running Experiment: Heterogeneous Concurrent
+Running Experiment: Heterogeneous Concurrent (Staggered Arrival)
 Concurrent: True, Trials: 3
 ============================================================
 Trial 1/3...
@@ -56,6 +54,10 @@ Trial 2/3...
 Trial 3/3...
 
 Results Summary:
-Mean Turnaround Time: 3.474 sec
-Std Turnaround Time: 0.818 sec
-Jain's Fairness Index: 0.952
+Mean Turnaround Time: 3.441 sec
+Std Turnaround Time: 0.761 sec
+Jain's Fairness Index: 0.957
+Saved: results_homogeneous_sequential_20251118_195334.csv
+Saved: results_heterogeneous_sequential_20251118_195334.csv
+Saved: results_homogeneous_concurrent_20251118_195334.csv
+Saved: results_heterogeneous_concurrent_20251118_195334.csv
