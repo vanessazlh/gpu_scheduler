@@ -15,9 +15,9 @@ Trial 2/3...
 Trial 3/3...
 
 Results Summary:
-Mean Turnaround Time: 5.484 sec
-Std Turnaround Time: 2.476 sec
-Jain's Fairness Index: 0.843
+Mean Turnaround Time: 5.280 sec
+Std Turnaround Time: 2.443 sec
+Jain's Fairness Index: 0.836
 
 ============================================================
 Running Experiment: Heterogeneous Sequential (Batch Arrival)
@@ -28,9 +28,9 @@ Trial 2/3...
 Trial 3/3...
 
 Results Summary:
-Mean Turnaround Time: 4.703 sec
-Std Turnaround Time: 2.734 sec
-Jain's Fairness Index: 0.763
+Mean Turnaround Time: 4.648 sec
+Std Turnaround Time: 2.717 sec
+Jain's Fairness Index: 0.761
 
 ============================================================
 Running Experiment: Homogeneous Concurrent (Staggered Arrival)
@@ -41,8 +41,8 @@ Trial 2/3...
 Trial 3/3...
 
 Results Summary:
-Mean Turnaround Time: 3.099 sec
-Std Turnaround Time: 0.206 sec
+Mean Turnaround Time: 3.050 sec
+Std Turnaround Time: 0.209 sec
 Jain's Fairness Index: 0.996
 
 ============================================================
@@ -54,10 +54,17 @@ Trial 2/3...
 Trial 3/3...
 
 Results Summary:
-Mean Turnaround Time: 3.441 sec
-Std Turnaround Time: 0.761 sec
-Jain's Fairness Index: 0.957
-Saved: results_homogeneous_sequential_20251118_195334.csv
-Saved: results_heterogeneous_sequential_20251118_195334.csv
-Saved: results_homogeneous_concurrent_20251118_195334.csv
-Saved: results_heterogeneous_concurrent_20251118_195334.csv
+Mean Turnaround Time: 3.265 sec
+Std Turnaround Time: 0.636 sec
+Jain's Fairness Index: 0.966
+Saved: results_homogeneous_sequential_20251120_000617.csv
+Saved: results_heterogeneous_sequential_20251120_000617.csv
+Saved: results_homogeneous_concurrent_20251120_000617.csv
+Saved: results_heterogeneous_concurrent_20251120_000617.csv
+
+
+Visualization saved: gpu_measurements_20251120_000617.png
+
+============================================================
+Experiment Complete!
+============================================================
