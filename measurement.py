@@ -1,362 +1,381 @@
 """
-GPU Scheduler Measurement Script
-Measures actual GPU workload behavior for scheduler analysis
-Run in Google Colab or any environment with GPU access
+GPU Scheduler Fairness Measurement - Optimized Version
+Clean structure + essential statistical analysis
 """
 
 import torch
-import torch.nn as nn
 import time
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from scipy import stats
 import matplotlib.pyplot as plt
 
+# -------------------------
+# Simple GPU workload class
+# -------------------------
 class SimpleGPUWorkload:
-    """A simple GPU workload that uses specified memory and compute time"""
     def __init__(self, memory_mb, duration_sec, workload_id):
         self.memory_mb = memory_mb
         self.duration_sec = duration_sec
         self.workload_id = workload_id
         self.tensor = None
-        
+
     def allocate_memory(self):
-        """Allocate GPU memory"""
-        if torch.cuda.is_available():
-            # Allocate tensor to use approximately memory_mb of GPU memory
-            # Each float32 takes 4 bytes
+        """Allocate GPU memory safely"""
+        try:
             elements = (self.memory_mb * 1024 * 1024) // 4
-            # Use 2D tensor for better alignment and more accurate memory allocation
             side = int(np.sqrt(elements))
             self.tensor = torch.randn((side, side), device='cuda', dtype=torch.float32)
             torch.cuda.synchronize()
-            
-            # Verify actual memory allocated
-            actual_memory = self.tensor.element_size() * self.tensor.nelement() / (1024 * 1024)
-            if abs(actual_memory - self.memory_mb) > self.memory_mb * 0.1:  # More than 10% off
-                print(f"Warning: Requested {self.memory_mb}MB, allocated {actual_memory:.1f}MB")
-    
+            return True
+        except RuntimeError as e:
+            print(f"[OOM] Job {self.workload_id} failed to allocate {self.memory_mb}MB")
+            self.tensor = None
+            return False
+
     def run(self):
-        """Run compute workload for specified duration"""
         if self.tensor is None:
-            self.allocate_memory()
+            return 0.0
         
-        start_time = time.time()
-        
-        # Based on benchmarking: ~0.028s per iteration for typical tensors
-        # Do iterations in batches of 10 to reduce sync overhead
-        batch_size = 10
-        estimated_time_per_batch = 0.28  # 10 iterations × 0.028s
-        
-        while (time.time() - start_time) < self.duration_sec:
-            # Perform a batch of iterations
-            for _ in range(batch_size):
-                temp = self.tensor * 2.0 + 1.0
-                temp = torch.sin(temp)
+        t_start = time.time()
+        while time.time() - t_start < self.duration_sec:
+            tmp = torch.sin(self.tensor * 2 + 1)
             torch.cuda.synchronize()
-            
-            # Check if we're close to target time
-            remaining = self.duration_sec - (time.time() - start_time)
-            if remaining < estimated_time_per_batch:
-                # Do final iterations without full batch
-                final_iters = max(1, int(remaining / 0.028))
-                for _ in range(final_iters):
-                    temp = self.tensor * 2.0 + 1.0
-                    temp = torch.sin(temp)
-                torch.cuda.synchronize()
-                break
-    
-    def free_memory(self):
-        """Free GPU memory"""
+        
+        return time.time() - t_start
+
+    def free(self):
         if self.tensor is not None:
             del self.tensor
             self.tensor = None
-            torch.cuda.empty_cache()
-            # Force garbage collection to ensure cleanup
-            import gc
-            gc.collect()
-            torch.cuda.synchronize()
+        torch.cuda.empty_cache()
+        import gc
+        gc.collect()
+        torch.cuda.synchronize()
 
-def measure_single_workload(memory_mb, duration_sec, workload_id):
-    """Measure a single workload execution"""
-    workload = SimpleGPUWorkload(memory_mb, duration_sec, workload_id)
-    
-    # Measure memory allocation time
-    alloc_start = time.time()
-    workload.allocate_memory()
-    alloc_time = time.time() - alloc_start
-    
-    # Measure execution time
-    exec_start = time.time()
-    workload.run()
-    exec_time = time.time() - exec_start
-    
-    # Measure deallocation time
-    free_start = time.time()
-    workload.free_memory()
-    free_time = time.time() - free_start
-    
-    return {
-        'workload_id': workload_id,
-        'memory_mb': memory_mb,
-        'target_duration_sec': duration_sec,
-        'alloc_time_sec': alloc_time,
-        'exec_time_sec': exec_time,
-        'free_time_sec': free_time,
-        'total_time_sec': alloc_time + exec_time + free_time
-    }
-
-def measure_sequential_workloads(workloads_config, trial_num):
-    """
-    Run workloads sequentially with batch arrival (all arrive at t=0)
-    This simulates traditional FIFO scheduling
-    """
+# -------------------------
+# Sequential execution (batch arrival)
+# -------------------------
+def run_sequential(workloads_config, scenario_name, trial_num):
+    """All jobs arrive at t=0, executed in FIFO order"""
     results = []
-    
-    # BATCH ARRIVAL: All jobs conceptually arrive at time 0
-    arrival_time = 0.0
-    
-    # Track cumulative completion time
     cumulative_time = 0.0
     
-    for i, (memory_mb, duration_sec, workload_id) in enumerate(workloads_config):
-        # Execute the workload
-        exec_start = time.time()
-        result = measure_single_workload(memory_mb, duration_sec, workload_id)
-        exec_end = time.time()
+    for mem, dur, wid in workloads_config:
+        job = SimpleGPUWorkload(mem, dur, wid)
         
-        # Actual execution time
-        actual_exec = exec_end - exec_start
+        if not job.allocate_memory():
+            results.append({
+                'trial': trial_num,
+                'workload_id': wid,
+                'memory_mb': mem,
+                'status': 'OOM_failure'
+            })
+            continue
         
-        # Calculate scheduling metrics
-        result['trial'] = trial_num
-        result['arrival_time'] = arrival_time  # All jobs arrive at 0
-        result['execution_start'] = cumulative_time  # When it starts in the queue
-        result['completion_time'] = cumulative_time + actual_exec  # When it finishes
-        result['turnaround_time'] = result['completion_time'] - arrival_time  # Real turnaround!
-        result['wait_time'] = cumulative_time - arrival_time  # Time waiting in queue
+        exec_time = job.run()
         
-        results.append(result)
+        results.append({
+            'trial': trial_num,
+            'workload_id': wid,
+            'memory_mb': mem,
+            'arrival_time': 0.0,
+            'completion_time': cumulative_time + exec_time,
+            'turnaround_time': cumulative_time + exec_time,
+            'wait_time': cumulative_time,
+            'status': 'success'
+        })
         
-        # Update for next job
-        cumulative_time += actual_exec
+        cumulative_time += exec_time
+        job.free()
+        time.sleep(0.1)  # Brief pause between jobs
     
     return results
 
-def measure_concurrent_workloads(workloads_config, trial_num):
-    """
-    Run workloads with staggered arrivals (concurrent submission)
-    This shows how GPU handles multiple requests with overlapping submission
-    """
+# -------------------------
+# Concurrent execution (staggered arrival)
+# -------------------------
+def run_concurrent(workloads_config, scenario_name, trial_num):
+    """Jobs arrive at staggered times"""
     import threading
     results = []
     results_lock = threading.Lock()
     trial_start = time.time()
     
-    def run_workload(memory_mb, duration_sec, workload_id, submission_offset):
-        try:
-            # Stagger submissions - jobs arrive at different times
-            time.sleep(submission_offset)
-            arrival_time = time.time() - trial_start
-            
-            # Execute the workload
-            result = measure_single_workload(memory_mb, duration_sec, workload_id)
-            completion_time = time.time() - trial_start
-            
-            result['trial'] = trial_num
-            result['arrival_time'] = arrival_time
-            result['completion_time'] = completion_time
-            result['turnaround_time'] = completion_time - arrival_time
-            result['status'] = 'success'
-            
-            with results_lock:
-                results.append(result)
-                
-        except torch.cuda.OutOfMemoryError as e:
-            # Record OOM failures
+    def run_job(mem, dur, wid, offset):
+        time.sleep(offset)
+        arrival = time.time() - trial_start
+        
+        job = SimpleGPUWorkload(mem, dur, wid)
+        if not job.allocate_memory():
             with results_lock:
                 results.append({
-                    'workload_id': workload_id,
-                    'memory_mb': memory_mb,
-                    'target_duration_sec': duration_sec,
                     'trial': trial_num,
-                    'arrival_time': time.time() - trial_start,
-                    'status': 'OOM_failure',
-                    'error': str(e)
+                    'workload_id': wid,
+                    'memory_mb': mem,
+                    'arrival_time': arrival,
+                    'status': 'OOM_failure'
                 })
-            torch.cuda.empty_cache()
+            return
+        
+        exec_time = job.run()
+        completion = time.time() - trial_start
+        
+        with results_lock:
+            results.append({
+                'trial': trial_num,
+                'workload_id': wid,
+                'memory_mb': mem,
+                'arrival_time': arrival,
+                'completion_time': completion,
+                'turnaround_time': completion - arrival,
+                'status': 'success'
+            })
+        
+        job.free()
     
     threads = []
-    for i, (memory_mb, duration_sec, workload_id) in enumerate(workloads_config):
-        submission_offset = i * 0.5  # Submit every 0.5 seconds
-        thread = threading.Thread(
-            target=run_workload,
-            args=(memory_mb, duration_sec, workload_id, submission_offset)
-        )
-        threads.append(thread)
-        thread.start()
+    for i, (mem, dur, wid) in enumerate(workloads_config):
+        t = threading.Thread(target=run_job, args=(mem, dur, wid, i * 0.5))
+        threads.append(t)
+        t.start()
     
-    for thread in threads:
-        thread.join()
+    for t in threads:
+        t.join()
     
     return results
 
-def calculate_fairness_metrics(results_df):
-    """Calculate Jain's Fairness Index"""
-    turnaround_times = results_df['turnaround_time'].values
-    n = len(turnaround_times)
-    
-    if n == 0:
-        return 0
-    
-    # Jain's Fairness Index: (sum of x_i)^2 / (n * sum of x_i^2)
-    sum_x = np.sum(turnaround_times)
-    sum_x_squared = np.sum(turnaround_times ** 2)
-    
-    jains_index = (sum_x ** 2) / (n * sum_x_squared) if sum_x_squared > 0 else 0
-    
-    return jains_index
-
-def run_experiment(scenario_name, workloads_config, num_trials=3, concurrent=False):
-    """Run a full experiment with multiple trials"""
+# -------------------------
+# Run multiple trials
+# -------------------------
+def run_experiment(workloads_config, scenario_name, num_trials=12, concurrent=False):
+    """Run experiment with multiple trials"""
     print(f"\n{'='*60}")
-    print(f"Running Experiment: {scenario_name}")
-    print(f"Concurrent: {concurrent}, Trials: {num_trials}")
+    print(f"Scenario: {scenario_name} ({'concurrent' if concurrent else 'sequential'})")
+    print(f"Trials: {num_trials}")
     print(f"{'='*60}")
     
     all_results = []
     
     for trial in range(num_trials):
-        print(f"Trial {trial + 1}/{num_trials}...")
+        print(f"  Trial {trial+1}/{num_trials}...", end=' ')
         
         if concurrent:
-            trial_results = measure_concurrent_workloads(workloads_config, trial)
+            trial_results = run_concurrent(workloads_config, scenario_name, trial)
         else:
-            trial_results = measure_sequential_workloads(workloads_config, trial)
+            trial_results = run_sequential(workloads_config, scenario_name, trial)
         
         all_results.extend(trial_results)
+        print("✓")
         
-        # Clear GPU memory between trials
         torch.cuda.empty_cache()
-        time.sleep(1)
+        time.sleep(0.5)
     
-    df = pd.DataFrame(all_results)
-    
-    # Calculate metrics
-    print(f"\nResults Summary:")
-    print(f"Mean Turnaround Time: {df['turnaround_time'].mean():.3f} sec")
-    print(f"Std Turnaround Time: {df['turnaround_time'].std():.3f} sec")
-    print(f"Jain's Fairness Index: {calculate_fairness_metrics(df):.3f}")
-    
-    return df
+    return pd.DataFrame(all_results)
 
-# Main Experiment Runner
+# -------------------------
+# Jain's Fairness Index
+# -------------------------
+def jains_index(turnaround_times):
+    if len(turnaround_times) == 0:
+        return np.nan
+    sum_x = np.sum(turnaround_times)
+    sum_x2 = np.sum(turnaround_times ** 2)
+    return (sum_x ** 2) / (len(turnaround_times) * sum_x2) if sum_x2 > 0 else np.nan
+
+# -------------------------
+# Statistical analysis
+# -------------------------
+def analyze_results(results_dict):
+    """Perform statistical analysis"""
+    print("\n" + "="*80)
+    print("STATISTICAL ANALYSIS")
+    print("="*80)
+    
+    # 1. Fairness comparison
+    print("\n1. FAIRNESS METRICS (Jain's Index)")
+    print("-" * 80)
+    fairness_data = {}
+    
+    for scenario, df in results_dict.items():
+        df_ok = df[df['status'] == 'success']
+        if len(df_ok) > 0:
+            fairness = jains_index(df_ok['turnaround_time'].values)
+            mean_tt = df_ok['turnaround_time'].mean()
+            std_tt = df_ok['turnaround_time'].std()
+            fairness_data[scenario] = fairness
+            
+            print(f"{scenario:40s}: {fairness:.4f} (mean={mean_tt:.3f}s, std={std_tt:.3f}s)")
+    
+    # 2. Sequential vs Concurrent comparison
+    print("\n2. SEQUENTIAL vs CONCURRENT (T-Tests)")
+    print("-" * 80)
+    
+    pairs = [
+        ('homogeneous_sequential', 'homogeneous_concurrent'),
+        ('heterogeneous_sequential', 'heterogeneous_concurrent')
+    ]
+    
+    for seq_name, conc_name in pairs:
+        if seq_name in results_dict and conc_name in results_dict:
+            seq_df = results_dict[seq_name]
+            conc_df = results_dict[conc_name]
+            
+            seq_ok = seq_df[seq_df['status'] == 'success']
+            conc_ok = conc_df[conc_df['status'] == 'success']
+            
+            if len(seq_ok) > 0 and len(conc_ok) > 0:
+                t_stat, p_val = stats.ttest_ind(
+                    seq_ok['turnaround_time'],
+                    conc_ok['turnaround_time']
+                )
+                
+                print(f"\n{seq_name.split('_')[0].title()}:")
+                print(f"  Sequential: {seq_ok['turnaround_time'].mean():.3f}s")
+                print(f"  Concurrent: {conc_ok['turnaround_time'].mean():.3f}s")
+                print(f"  T-statistic: {t_stat:.4f}, p-value: {p_val:.4f}")
+                print(f"  Significant: {'YES' if p_val < 0.05 else 'NO'} (α=0.05)")
+    
+    # 3. Small_1 vs Small_2 analysis
+    print("\n3. SMALL_1 vs SMALL_2 (Why does Small_2 take longer?)")
+    print("-" * 80)
+    
+    for scenario in ['heterogeneous_sequential', 'heterogeneous_concurrent']:
+        if scenario in results_dict:
+            df = results_dict[scenario][results_dict[scenario]['status'] == 'success']
+            
+            s1 = df[df['workload_id'] == 'small_1']['turnaround_time']
+            s2 = df[df['workload_id'] == 'small_2']['turnaround_time']
+            
+            if len(s1) > 0 and len(s2) > 0:
+                t_stat, p_val = stats.ttest_ind(s1, s2)
+                
+                print(f"\n{scenario}:")
+                print(f"  Small_1: {s1.mean():.3f}s (n={len(s1)})")
+                print(f"  Small_2: {s2.mean():.3f}s (n={len(s2)})")
+                print(f"  Difference: {s2.mean() - s1.mean():.3f}s")
+                print(f"  T-stat: {t_stat:.4f}, p-value: {p_val:.4f}")
+                print(f"  Significant: {'YES' if p_val < 0.05 else 'NO'}")
+                
+                if 'wait_time' in df.columns:
+                    s1_wait = df[df['workload_id'] == 'small_1']['wait_time'].mean()
+                    s2_wait = df[df['workload_id'] == 'small_2']['wait_time'].mean()
+                    print(f"  → Small_2 waits {s2_wait - s1_wait:.3f}s longer in queue")
+    
+    return fairness_data
+
+# -------------------------
+# Visualization
+# -------------------------
+def create_plots(results_dict, timestamp):
+    """Create fairness comparison bar chart"""
+    fairness_values = []
+    labels = []
+    colors = []
+    
+    for scenario, df in results_dict.items():
+        df_ok = df[df['status'] == 'success']
+        if len(df_ok) > 0:
+            fairness = jains_index(df_ok['turnaround_time'].values)
+            fairness_values.append(fairness)
+            labels.append(scenario.replace('_', ' ').title())
+            colors.append('#3498db' if 'sequential' in scenario else '#e74c3c')
+    
+    # Bar chart
+    fig, ax = plt.subplots(figsize=(12, 6))
+    bars = ax.bar(range(len(fairness_values)), fairness_values, 
+                   color=colors, alpha=0.8, edgecolor='black')
+    
+    ax.set_xticks(range(len(labels)))
+    ax.set_xticklabels(labels, rotation=45, ha='right')
+    ax.set_ylabel("Jain's Fairness Index", fontsize=12, fontweight='bold')
+    ax.set_title("GPU Scheduler Fairness Comparison (12 Trials)", 
+                 fontsize=14, fontweight='bold')
+    ax.set_ylim([0, 1.05])
+    ax.axhline(y=1.0, color='green', linestyle='--', linewidth=1, 
+               alpha=0.7, label='Perfect Fairness')
+    ax.grid(axis='y', alpha=0.3)
+    
+    # Add values on bars
+    for bar, val in zip(bars, fairness_values):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                f'{val:.3f}', ha='center', va='bottom', 
+                fontsize=10, fontweight='bold')
+    
+    # Legend
+    from matplotlib.patches import Patch
+    legend = [
+        Patch(facecolor='#3498db', label='Sequential (Batch)'),
+        Patch(facecolor='#e74c3c', label='Concurrent (Staggered)')
+    ]
+    ax.legend(handles=legend, loc='lower left', fontsize=10)
+    
+    plt.tight_layout()
+    filename = f'fairness_comparison_{timestamp}.png'
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    print(f"\n✓ Saved visualization: {filename}")
+    plt.show()
+
+# -------------------------
+# MAIN EXECUTION
+# -------------------------
 if __name__ == "__main__":
-    # Check GPU availability and memory
     if not torch.cuda.is_available():
         print("ERROR: No GPU available!")
         exit(1)
     
+    # GPU info
     gpu_props = torch.cuda.get_device_properties(0)
-    gpu_memory_gb = gpu_props.total_memory / 1e9
+    gpu_mem_gb = gpu_props.total_memory / 1e9
+    print(f"GPU: {torch.cuda.get_device_name(0)}")
+    print(f"Memory: {gpu_mem_gb:.2f} GB")
     
-    print(f"GPU Device: {torch.cuda.get_device_name(0)}")
-    print(f"GPU Memory: {gpu_memory_gb:.2f} GB")
+    # Safe memory settings
+    safe_mem_per_job = min(int(gpu_mem_gb * 1024 * 0.3), 1024)
+    print(f"Memory per job: {safe_mem_per_job}MB")
     
-    # Adjust workload sizes based on GPU memory
-    safe_memory_per_job = int((gpu_memory_gb * 0.5 * 1024) / 4)
-    
-    print(f"Safe memory per concurrent job: {safe_memory_per_job}MB")
-    
-    # Define workload scenarios
-    homogeneous = [
-        (min(1024, safe_memory_per_job), 2, 'job_1'),
-        (min(1024, safe_memory_per_job), 2, 'job_2'),
-        (min(1024, safe_memory_per_job), 2, 'job_3'),
-        (min(1024, safe_memory_per_job), 2, 'job_4'),
-    ]
-    
-    small_size = min(512, safe_memory_per_job // 3)
-    large_size = min(1536, safe_memory_per_job)
+    # Define workloads
+    homogeneous = [(safe_mem_per_job, 2, f'job_{i+1}') for i in range(4)]
     heterogeneous = [
-        (small_size, 1, 'small_1'),
-        (large_size, 3, 'large_1'),
-        (small_size, 1, 'small_2'),
-        (large_size, 3, 'large_2'),
+        (safe_mem_per_job // 3, 1, 'small_1'),
+        (safe_mem_per_job, 3, 'large_1'),
+        (safe_mem_per_job // 3, 1, 'small_2'),
+        (safe_mem_per_job, 3, 'large_2'),
     ]
     
-    print(f"\nWorkload configuration:")
-    print(f"Homogeneous: {homogeneous[0][0]}MB x 4 jobs")
-    print(f"Heterogeneous: {small_size}MB (small) and {large_size}MB (large)")
-    
-    # Run experiments
+    # Run experiments (12 trials each)
     results = {}
-    
     results['homogeneous_sequential'] = run_experiment(
-        "Homogeneous Sequential (Batch Arrival)",
-        homogeneous,
-        num_trials=3,
-        concurrent=False
-    )
+        homogeneous, 'homogeneous', num_trials=12, concurrent=False)
     
     results['heterogeneous_sequential'] = run_experiment(
-        "Heterogeneous Sequential (Batch Arrival)",
-        heterogeneous,
-        num_trials=3,
-        concurrent=False
-    )
+        heterogeneous, 'heterogeneous', num_trials=12, concurrent=False)
     
     results['homogeneous_concurrent'] = run_experiment(
-        "Homogeneous Concurrent (Staggered Arrival)",
-        homogeneous,
-        num_trials=3,
-        concurrent=True
-    )
+        homogeneous, 'homogeneous', num_trials=12, concurrent=True)
     
     results['heterogeneous_concurrent'] = run_experiment(
-        "Heterogeneous Concurrent (Staggered Arrival)",
-        heterogeneous,
-        num_trials=3,
-        concurrent=True
-    )
+        heterogeneous, 'heterogeneous', num_trials=12, concurrent=True)
     
-    # Save results
+    # Save CSVs
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    for scenario_name, df in results.items():
-        filename = f"results_{scenario_name}_{timestamp}.csv"
+    print("\n" + "="*80)
+    print("SAVING RESULTS")
+    print("="*80)
+    
+    for scenario, df in results.items():
+        filename = f'results_{scenario}_{timestamp}.csv'
         df.to_csv(filename, index=False)
-        print(f"Saved: {filename}")
+        print(f"✓ {filename}")
+    
+    # Statistical analysis
+    fairness_data = analyze_results(results)
     
     # Create visualization
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle('GPU Workload Measurements - Turnaround Time Analysis', fontsize=16)
+    create_plots(results, timestamp)
     
-    for idx, (scenario_name, df) in enumerate(results.items()):
-        ax = axes[idx // 2, idx % 2]
-        
-        if 'status' in df.columns:
-            df_success = df[df['status'] == 'success']
-        else:
-            df_success = df
-        
-        if not df_success.empty and 'turnaround_time' in df_success.columns:
-            df_success.boxplot(column='turnaround_time', by='workload_id', ax=ax)
-            ax.set_title(scenario_name.replace('_', ' ').title())
-            ax.set_xlabel('Workload')
-            ax.set_ylabel('Turnaround Time (sec)')
-            plt.sca(ax)
-            plt.xticks(rotation=45)
-        else:
-            ax.text(0.5, 0.5, 'No successful runs',
-                   ha='center', va='center', transform=ax.transAxes)
-            ax.set_title(scenario_name.replace('_', ' ').title())
-    
-    plt.tight_layout()
-    plot_filename = f'gpu_measurements_{timestamp}.png'
-    plt.savefig(plot_filename, dpi=150, bbox_inches='tight')
-    plt.show()
-    print(f"\nVisualization saved: {plot_filename}")
-    
-    print("\n" + "="*60)
-    print("Experiment Complete!")
-    print("="*60)
+    print("\n" + "="*80)
+    print("EXPERIMENT COMPLETE!")
+    print("="*80)
