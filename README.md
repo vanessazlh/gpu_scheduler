@@ -18,13 +18,13 @@ This project investigates how memory-aware scheduling can improve fairness when 
 │   ├── scheduler.py          # Base scheduler class and implementations (FIFO, Fair, Memory-Aware)
 │   ├── workload.py            # Job/workload definitions
 │   ├── memory_manager.py      # GPU memory tracking and swap management
-│   └── gpu_scheduler_measurement.py  # Alternative measurement implementation
+implementation
 ├── simulator.py               # Simulator demo and comparison
 ├── measurement.py            # Empirical GPU fairness measurement script
-├── results/                  # Measurement outputs
+├── results/                  # Measurement outputs from measurement.py
 │   ├── results_*.csv         # CSV files with detailed metrics (4 scenarios × 12 trials)
 │   ├── fairness_comparison_*.png  # Fairness visualization
-│   └── results.txt          # Summary statistics
+│   └── results.txt          # Output of measurement.py
 └── README.md
 ```
 
@@ -124,29 +124,8 @@ This measures actual GPU scheduler behavior using PyTorch workloads, comparing:
 2. **Fair Scheduler:** Virtual runtime-based fair scheduling (inspired by CFS)
 3. **Memory-Aware:** Considers both fairness and memory residency to minimize expensive swap operations
 
-## Project Context
-
-Part of OS course investigation into whether GPU schedulers optimize for fairness when memory is constrained. Uses both:
-
-- **Empirical measurement** (real GPU workloads) instead of kernel-level implementation
-- **Theoretical simulation** to model and compare scheduling policies
-
-## Current Status
-
-- [x] Project setup and environment configuration
-- [x] Basic scheduler framework (FIFO, Fair, Memory-Aware)
-- [x] Memory tracking implementation
-- [x] Memory-aware scheduling policy
-- [x] GPU measurement framework
-- [x] Statistical analysis and visualization
-- [x] Fairness metrics (Jain's Index)
-- [ ] Comprehensive testing suite
-- [ ] Integration between simulator and measurements
-
 ## References
 
 - Ursulin, T. "Fair(er) DRM GPU Scheduler" (2024)
 - Linux DRM GPU Scheduler documentation
 - Related work: Synergy, Salus, PipeSwitch
-
-## License

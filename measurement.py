@@ -1,6 +1,5 @@
 """
-GPU Scheduler Fairness Measurement - Optimized Version
-Clean structure + essential statistical analysis
+GPU Scheduler Fairness Measurement
 """
 
 import torch
