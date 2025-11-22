@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Results
+results_*.csv
+*.png
+fairness_comparison_*.png
+gpu_measurements_*.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+```
+
+### 3. **Organize File Structure**
+```
+gpu_scheduler/
+├── README.md
+├── .gitignore
+├── requirements.txt
+├── gpu_measurement_optimized.py  (main script)
+└── results/                       (for storing outputs)
+    └── .gitkeep

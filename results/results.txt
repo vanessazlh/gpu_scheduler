@@ -1,70 +1,130 @@
-GPU Device: Tesla T4
-GPU Memory: 15.83 GB
-Safe memory per concurrent job: 2026MB
-
-Workload configuration:
-Homogeneous: 1024MB x 4 jobs
-Heterogeneous: 512MB (small) and 1536MB (large)
+GPU: Tesla T4
+Memory: 15.83 GB
+Memory per job: 1024MB
 
 ============================================================
-Running Experiment: Homogeneous Sequential (Batch Arrival)
-Concurrent: False, Trials: 3
+Scenario: homogeneous (sequential)
+Trials: 12
 ============================================================
-Trial 1/3...
-Trial 2/3...
-Trial 3/3...
-
-Results Summary:
-Mean Turnaround Time: 5.280 sec
-Std Turnaround Time: 2.443 sec
-Jain's Fairness Index: 0.836
-
-============================================================
-Running Experiment: Heterogeneous Sequential (Batch Arrival)
-Concurrent: False, Trials: 3
-============================================================
-Trial 1/3...
-Trial 2/3...
-Trial 3/3...
-
-Results Summary:
-Mean Turnaround Time: 4.648 sec
-Std Turnaround Time: 2.717 sec
-Jain's Fairness Index: 0.761
+  Trial 1/12... ✓
+  Trial 2/12... ✓
+  Trial 3/12... ✓
+  Trial 4/12... ✓
+  Trial 5/12... ✓
+  Trial 6/12... ✓
+  Trial 7/12... ✓
+  Trial 8/12... ✓
+  Trial 9/12... ✓
+  Trial 10/12... ✓
+  Trial 11/12... ✓
+  Trial 12/12... ✓
 
 ============================================================
-Running Experiment: Homogeneous Concurrent (Staggered Arrival)
-Concurrent: True, Trials: 3
+Scenario: heterogeneous (sequential)
+Trials: 12
 ============================================================
-Trial 1/3...
-Trial 2/3...
-Trial 3/3...
-
-Results Summary:
-Mean Turnaround Time: 3.050 sec
-Std Turnaround Time: 0.209 sec
-Jain's Fairness Index: 0.996
-
-============================================================
-Running Experiment: Heterogeneous Concurrent (Staggered Arrival)
-Concurrent: True, Trials: 3
-============================================================
-Trial 1/3...
-Trial 2/3...
-Trial 3/3...
-
-Results Summary:
-Mean Turnaround Time: 3.265 sec
-Std Turnaround Time: 0.636 sec
-Jain's Fairness Index: 0.966
-Saved: results_homogeneous_sequential_20251120_000617.csv
-Saved: results_heterogeneous_sequential_20251120_000617.csv
-Saved: results_homogeneous_concurrent_20251120_000617.csv
-Saved: results_heterogeneous_concurrent_20251120_000617.csv
-
-
-Visualization saved: gpu_measurements_20251120_000617.png
+  Trial 1/12... ✓
+  Trial 2/12... ✓
+  Trial 3/12... ✓
+  Trial 4/12... ✓
+  Trial 5/12... ✓
+  Trial 6/12... ✓
+  Trial 7/12... ✓
+  Trial 8/12... ✓
+  Trial 9/12... ✓
+  Trial 10/12... ✓
+  Trial 11/12... ✓
+  Trial 12/12... ✓
 
 ============================================================
-Experiment Complete!
+Scenario: homogeneous (concurrent)
+Trials: 12
 ============================================================
+  Trial 1/12... ✓
+  Trial 2/12... ✓
+  Trial 3/12... ✓
+  Trial 4/12... ✓
+  Trial 5/12... ✓
+  Trial 6/12... ✓
+  Trial 7/12... ✓
+  Trial 8/12... ✓
+  Trial 9/12... ✓
+  Trial 10/12... ✓
+  Trial 11/12... ✓
+  Trial 12/12... ✓
+
+============================================================
+Scenario: heterogeneous (concurrent)
+Trials: 12
+============================================================
+  Trial 1/12... ✓
+  Trial 2/12... ✓
+  Trial 3/12... ✓
+  Trial 4/12... ✓
+  Trial 5/12... ✓
+  Trial 6/12... ✓
+  Trial 7/12... ✓
+  Trial 8/12... ✓
+  Trial 9/12... ✓
+  Trial 10/12... ✓
+  Trial 11/12... ✓
+  Trial 12/12... ✓
+
+================================================================================
+SAVING RESULTS
+================================================================================
+✓ results_homogeneous_sequential_20251121_232133.csv
+✓ results_heterogeneous_sequential_20251121_232133.csv
+✓ results_homogeneous_concurrent_20251121_232133.csv
+✓ results_heterogeneous_concurrent_20251121_232133.csv
+
+================================================================================
+STATISTICAL ANALYSIS
+================================================================================
+
+1. FAIRNESS METRICS (Jain's Index)
+--------------------------------------------------------------------------------
+homogeneous_sequential                  : 0.8334 (mean=5.034s, std=2.275s)
+heterogeneous_sequential                : 0.7643 (mean=4.513s, std=2.533s)
+homogeneous_concurrent                  : 0.9999 (mean=2.055s, std=0.024s)
+heterogeneous_concurrent                : 0.8083 (mean=2.046s, std=1.007s)
+
+2. SEQUENTIAL vs CONCURRENT (T-Tests)
+--------------------------------------------------------------------------------
+
+Homogeneous:
+  Sequential: 5.034s
+  Concurrent: 2.055s
+  T-statistic: 9.0714, p-value: 0.0000
+  Significant: YES (α=0.05)
+
+Heterogeneous:
+  Sequential: 4.513s
+  Concurrent: 2.046s
+  T-statistic: 6.2721, p-value: 0.0000
+  Significant: YES (α=0.05)
+
+3. SMALL_1 vs SMALL_2 (Why does Small_2 take longer?)
+--------------------------------------------------------------------------------
+
+heterogeneous_sequential:
+  Small_1: 1.004s (n=12)
+  Small_2: 5.015s (n=12)
+  Difference: 4.011s
+  T-stat: -4999.7738, p-value: 0.0000
+  Significant: YES
+  → Small_2 waits 4.011s longer in queue
+
+heterogeneous_concurrent:
+  Small_1: 1.029s (n=12)
+  Small_2: 1.071s (n=12)
+  Difference: 0.042s
+  T-stat: -10.2104, p-value: 0.0000
+  Significant: YES
+
+✓ Saved visualization: fairness_comparison_20251121_232133.png
+
+
+================================================================================
+EXPERIMENT COMPLETE!
+================================================================================
