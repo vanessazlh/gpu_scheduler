@@ -4,12 +4,10 @@ Empirical and theoretical analysis of GPU scheduling fairness under memory const
 
 ## Project Overview
 
-This project investigates how memory-aware scheduling can improve fairness when scheduling GPU compute workloads. The project combines:
+This project investigates if and how memory-aware scheduling can improve fairness when scheduling GPU compute workloads. The project combines:
 
 1. **Theoretical Simulator**: Discrete-event simulation of GPU schedulers (FIFO, Fair, Memory-Aware)
 2. **Empirical Measurements**: Real GPU workload measurements using PyTorch
-
-**Research Question:** How does memory-aware scheduling improve fairness compared to existing policies when scheduling GPU compute workloads?
 
 ## Project Structure
 
@@ -98,34 +96,3 @@ This measures actual GPU scheduler behavior using PyTorch workloads, comparing:
 - T-test results (sequential vs concurrent)
 - Small_1 vs Small_2 analysis
 - Wait time comparisons
-
-## Key Metrics
-
-### Jain's Fairness Index
-
-- **1.0** = perfect fairness
-- **<1.0** = some jobs penalized
-
-### Expected Results
-
-- **Sequential**: High fairness (~0.95-1.0) - jobs execute in order
-- **Concurrent**: Lower fairness due to staggered arrivals and memory contention
-- **Small_2** experiences longer wait times (blocked by Large_1 in heterogeneous scenarios)
-
-### Simulator Metrics
-
-- **Total time**: Time to complete all jobs
-- **Average turnaround time**: Mean time from arrival to completion
-- **Total swaps**: Number of memory swap operations (indicates memory pressure)
-
-## Scheduling Policies
-
-1. **FIFO:** First-in-first-out scheduling
-2. **Fair Scheduler:** Virtual runtime-based fair scheduling (inspired by CFS)
-3. **Memory-Aware:** Considers both fairness and memory residency to minimize expensive swap operations
-
-## References
-
-- Ursulin, T. "Fair(er) DRM GPU Scheduler" (2024)
-- Linux DRM GPU Scheduler documentation
-- Related work: Synergy, Salus, PipeSwitch
